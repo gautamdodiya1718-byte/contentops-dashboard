@@ -21,10 +21,13 @@ interface Filters {
 }
 
 interface ContentStore {
+  // Data
   posts: ContentPost[]
   comments: Comment[]
   activityLog: ActivityEntry[]
   currentUser: CurrentUser | null
+
+  // UI State
   activeView: ViewType
   quickFilter: QuickFilter
   searchTerm: string
@@ -40,8 +43,11 @@ interface ContentStore {
   isLoading: boolean
   isOnline: boolean
 
+  // User actions
   setCurrentUser: (user: CurrentUser) => void
   clearCurrentUser: () => void
+
+  // UI actions
   setActiveView: (view: ViewType) => void
   setQuickFilter: (filter: QuickFilter) => void
   setSearchTerm: (term: string) => void
@@ -56,6 +62,7 @@ interface ContentStore {
   setFilters: (filters: Partial<Filters>) => void
   resetFilters: () => void
 
+  // CRUD
   addPost: (post: Omit<ContentPost, 'id' | 'createdAt' | 'updatedAt'>) => void
   updatePost: (id: string, updates: Partial<ContentPost>) => void
   deletePost: (id: string) => void
@@ -63,6 +70,7 @@ interface ContentStore {
   importPosts: (posts: ContentPost[]) => void
   addComment: (postId: string, text: string) => void
 
+  // Supabase
   initFromSupabase: () => Promise<void>
   refreshPosts: () => Promise<void>
   refreshComments: () => Promise<void>
@@ -70,12 +78,7 @@ interface ContentStore {
 }
 
 const defaultFilters: Filters = {
-  status: 'ALL',
-  author: '',
-  priority: 'ALL',
-  cluster: '',
-  dateFrom: '',
-  dateTo: '',
+  status: 'ALL', author: '', priority: 'ALL', cluster: '', dateFrom: '', dateTo: '',
 }
 
 export const useContentStore = create<ContentStore>()(
@@ -100,8 +103,11 @@ export const useContentStore = create<ContentStore>()(
       isLoading: false,
       isOnline: false,
 
+      // --- User ---
       setCurrentUser: (user) => set({ currentUser: user }),
       clearCurrentUser: () => set({ currentUser: null }),
+
+      // --- UI ---
       setActiveView: (view) => set({ activeView: view }),
       setQuickFilter: (filter) => set({ quickFilter: filter }),
       setSearchTerm: (term) => set({ searchTerm: term }),
@@ -120,17 +126,19 @@ export const useContentStore = create<ContentStore>()(
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
       resetFilters: () => set({ filters: defaultFilters }),
 
+      // --- CRUD (optimistic + Supabase sync) ---
+
       addPost: (post) => {
         const userName = get().currentUser?.name || 'Unknown'
         const now = new Date().toISOString().split('T')[0]
         const newPost: ContentPost = { ...post, id: generateId(), createdAt: now, updatedAt: now }
         set((s) => ({ posts: [newPost, ...s.posts] }))
-        if (isSupabaseConfigured()) {
-          db.insertPost(newPost)
-          db.insertActivity(newPost.id, 'Created', userName, '', newPost.title)
-        }
         const entry: ActivityEntry = { id: crypto.randomUUID(), postId: newPost.id, action: 'Created', performedBy: userName, oldValue: '', newValue: newPost.title, timestamp: new Date().toISOString() }
         set((s) => ({ activityLog: [...s.activityLog, entry] }))
+        if (isSupabaseConfigured()) {
+          db.insertPost(newPost).then(ok => { if (!ok) console.error('Failed to sync new post') })
+          db.insertActivity(newPost.id, 'Created', userName, '', newPost.title)
+        }
       },
 
       updatePost: (id, updates) => {
@@ -146,9 +154,7 @@ export const useContentStore = create<ContentStore>()(
           posts: s.posts.filter((p) => p.id !== id),
           selectedPostId: s.selectedPostId === id ? null : s.selectedPostId,
         }))
-        if (isSupabaseConfigured()) {
-          db.deletePostDB(id)
-        }
+        if (isSupabaseConfigured()) { db.deletePostDB(id) }
       },
 
       changeStatus: (id, newStatus) => {
@@ -172,7 +178,9 @@ export const useContentStore = create<ContentStore>()(
       importPosts: (newPosts) => {
         set((s) => ({ posts: [...newPosts, ...s.posts] }))
         if (isSupabaseConfigured()) {
-          db.bulkInsertPosts(newPosts)
+          db.bulkInsertPosts(newPosts).then(ok => {
+            if (ok) get().refreshPosts()
+          })
         }
       },
 
@@ -180,10 +188,10 @@ export const useContentStore = create<ContentStore>()(
         const userName = get().currentUser?.name || 'Unknown'
         const comment: Comment = { id: crypto.randomUUID(), postId, author: userName, text, createdAt: new Date().toISOString() }
         set((s) => ({ comments: [...s.comments, comment] }))
-        if (isSupabaseConfigured()) {
-          db.insertComment(postId, userName, text)
-        }
+        if (isSupabaseConfigured()) { db.insertComment(postId, userName, text) }
       },
+
+      // --- Supabase sync ---
 
       initFromSupabase: async () => {
         if (!isSupabaseConfigured()) { set({ isOnline: false }); return }
@@ -195,9 +203,18 @@ export const useContentStore = create<ContentStore>()(
           if (posts.length > 0) {
             set({ posts, comments, activityLog: activity, isOnline: true, isLoading: false })
           } else {
+            // DB empty — seed with sample data
             const localPosts = get().posts
-            if (localPosts.length > 0) await db.bulkInsertPosts(localPosts)
-            set({ isOnline: true, isLoading: false })
+            if (localPosts.length > 0) {
+              const ok = await db.bulkInsertPosts(localPosts)
+              if (ok) {
+                set({ isOnline: true, isLoading: false })
+              } else {
+                set({ isOnline: false, isLoading: false })
+              }
+            } else {
+              set({ isOnline: true, isLoading: false })
+            }
           }
         } catch (err) {
           console.error('Supabase init failed:', err)
@@ -224,11 +241,8 @@ export const useContentStore = create<ContentStore>()(
     {
       name: 'contentops-storage',
       partialize: (state) => ({
-        posts: state.posts,
-        comments: state.comments,
-        activityLog: state.activityLog,
-        isDarkMode: state.isDarkMode,
         currentUser: state.currentUser,
+        isDarkMode: state.isDarkMode,
       }),
     }
   )
