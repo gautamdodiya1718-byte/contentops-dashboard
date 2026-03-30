@@ -1,10 +1,23 @@
-import { Activity, LayoutDashboard, KanbanSquare, Calendar, Users, Settings, Eye, CheckCircle2 } from 'lucide-react'
+import { Activity, LayoutDashboard, KanbanSquare, Calendar, Users, Eye, CheckCircle2, LogOut } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { useContentStore } from '@/stores/contentStore'
-import type { ViewType, QuickFilter } from '@/lib/types'
+
+const ROLE_LABELS: Record<string, string> = {
+  writer: 'Content Writer',
+  editor: 'Editor',
+  publisher: 'Publisher',
+  seo: 'SEO Lead',
+  marketer: 'Marketer',
+  admin: 'Admin',
+}
 
 export function Sidebar() {
-  const { activeView, setActiveView, quickFilter, setQuickFilter } = useContentStore()
+  const activeView = useContentStore((s) => s.activeView)
+  const setActiveView = useContentStore((s) => s.setActiveView)
+  const quickFilter = useContentStore((s) => s.quickFilter)
+  const setQuickFilter = useContentStore((s) => s.setQuickFilter)
+  const currentUser = useContentStore((s) => s.currentUser)
+  const clearCurrentUser = useContentStore((s) => s.clearCurrentUser)
 
   return (
     <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0 hidden md:flex">
@@ -31,17 +44,26 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-            CU
-          </div>
-          <div className="text-sm">
-            <p className="font-medium text-foreground">Current User</p>
-            <p className="text-xs text-muted-foreground">SEO Lead</p>
+      {currentUser && (
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+              {getInitials(currentUser.name)}
+            </div>
+            <div className="text-sm flex-1 min-w-0">
+              <p className="font-medium text-foreground truncate">{currentUser.name}</p>
+              <p className="text-xs text-muted-foreground">{ROLE_LABELS[currentUser.role] || currentUser.role}</p>
+            </div>
+            <button
+              onClick={clearCurrentUser}
+              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors shrink-0"
+              title="Switch user"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
-      </div>
+      )}
     </aside>
   )
 }

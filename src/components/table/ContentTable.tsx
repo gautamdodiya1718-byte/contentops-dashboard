@@ -22,6 +22,7 @@ export function ContentTable() {
   const searchTerm = useContentStore((s) => s.searchTerm)
   const quickFilter = useContentStore((s) => s.quickFilter)
   const filters = useContentStore((s) => s.filters)
+  const currentUser = useContentStore((s) => s.currentUser)
 
   const filteredData = useMemo(() => {
     let result = [...posts]
@@ -29,7 +30,10 @@ export function ContentTable() {
       const term = searchTerm.toLowerCase()
       result = result.filter(p => p.title.toLowerCase().includes(term) || p.primaryKeyword.toLowerCase().includes(term) || p.author.toLowerCase().includes(term) || p.urlSlug.toLowerCase().includes(term))
     }
-    if (quickFilter === 'my-queue') result = result.filter(p => ['ASSIGNED', 'IN PROGRESS', 'WRITTEN'].includes(p.status))
+    if (quickFilter === 'my-queue') {
+      const myName = currentUser?.name || ''
+      result = result.filter(p => ['ASSIGNED', 'IN PROGRESS', 'WRITTEN'].includes(p.status) && (p.author === myName || p.reviewer === myName))
+    }
     else if (quickFilter === 'needs-review') result = result.filter(p => p.status === 'IN REVIEW')
     else if (quickFilter === 'approved') result = result.filter(p => p.status === 'APPROVED')
     if (filters.status !== 'ALL') result = result.filter(p => p.status === filters.status)

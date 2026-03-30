@@ -6,6 +6,11 @@ import { generateId } from '@/lib/utils'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import * as db from '@/lib/supabaseService'
 
+export interface CurrentUser {
+  name: string
+  role: 'writer' | 'editor' | 'publisher' | 'seo' | 'marketer' | 'admin'
+}
+
 interface Filters {
   status: ContentStatus | 'ALL'
   author: string
@@ -19,6 +24,7 @@ interface ContentStore {
   posts: ContentPost[]
   comments: Comment[]
   activityLog: ActivityEntry[]
+  currentUser: CurrentUser | null
   activeView: ViewType
   quickFilter: QuickFilter
   searchTerm: string
@@ -34,6 +40,8 @@ interface ContentStore {
   isLoading: boolean
   isOnline: boolean
 
+  setCurrentUser: (user: CurrentUser) => void
+  clearCurrentUser: () => void
   setActiveView: (view: ViewType) => void
   setQuickFilter: (filter: QuickFilter) => void
   setSearchTerm: (term: string) => void
@@ -53,9 +61,8 @@ interface ContentStore {
   deletePost: (id: string) => void
   changeStatus: (id: string, newStatus: ContentStatus) => void
   importPosts: (posts: ContentPost[]) => void
-  addComment: (postId: string, author: string, text: string) => void
+  addComment: (postId: string, text: string) => void
 
-  // Supabase sync
   initFromSupabase: () => Promise<void>
   refreshPosts: () => Promise<void>
   refreshComments: () => Promise<void>
@@ -77,6 +84,7 @@ export const useContentStore = create<ContentStore>()(
       posts: SAMPLE_DATA,
       comments: [],
       activityLog: [],
+      currentUser: null,
       activeView: 'table' as ViewType,
       quickFilter: 'all' as QuickFilter,
       searchTerm: '',
@@ -92,6 +100,8 @@ export const useContentStore = create<ContentStore>()(
       isLoading: false,
       isOnline: false,
 
+      setCurrentUser: (user) => set({ currentUser: user }),
+      clearCurrentUser: () => set({ currentUser: null }),
       setActiveView: (view) => set({ activeView: view }),
       setQuickFilter: (filter) => set({ quickFilter: filter }),
       setSearchTerm: (term) => set({ searchTerm: term }),
@@ -110,20 +120,16 @@ export const useContentStore = create<ContentStore>()(
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
       resetFilters: () => set({ filters: defaultFilters }),
 
-      // --- CRUD with Supabase sync ---
-
       addPost: (post) => {
+        const userName = get().currentUser?.name || 'Unknown'
         const now = new Date().toISOString().split('T')[0]
         const newPost: ContentPost = { ...post, id: generateId(), createdAt: now, updatedAt: now }
-        // Optimistic update
         set((s) => ({ posts: [newPost, ...s.posts] }))
-        // Sync to DB
         if (isSupabaseConfigured()) {
           db.insertPost(newPost)
-          db.insertActivity(newPost.id, 'Created', 'Current User', '', newPost.title)
+          db.insertActivity(newPost.id, 'Created', userName, '', newPost.title)
         }
-        // Local activity log
-        const entry: ActivityEntry = { id: crypto.randomUUID(), postId: newPost.id, action: 'Created', performedBy: 'Current User', oldValue: '', newValue: newPost.title, timestamp: new Date().toISOString() }
+        const entry: ActivityEntry = { id: crypto.randomUUID(), postId: newPost.id, action: 'Created', performedBy: userName, oldValue: '', newValue: newPost.title, timestamp: new Date().toISOString() }
         set((s) => ({ activityLog: [...s.activityLog, entry] }))
       },
 
@@ -148,20 +154,18 @@ export const useContentStore = create<ContentStore>()(
       changeStatus: (id, newStatus) => {
         const post = get().posts.find((p) => p.id === id)
         if (!post || post.status === newStatus) return
+        const userName = get().currentUser?.name || 'Unknown'
         const oldStatus = post.status
         const now = new Date().toISOString().split('T')[0]
         const updates: Partial<ContentPost> = { status: newStatus, updatedAt: now }
         if (newStatus === 'PUBLISHED' && !post.datePublished) updates.datePublished = now
         if (newStatus === 'WRITTEN' && !post.dateWritten) updates.dateWritten = now
-        // Optimistic update
         set((s) => ({ posts: s.posts.map((p) => (p.id === id ? { ...p, ...updates } : p)) }))
-        // Activity log
-        const entry: ActivityEntry = { id: crypto.randomUUID(), postId: id, action: 'Status changed', performedBy: 'Current User', oldValue: oldStatus, newValue: newStatus, timestamp: new Date().toISOString() }
+        const entry: ActivityEntry = { id: crypto.randomUUID(), postId: id, action: 'Status changed', performedBy: userName, oldValue: oldStatus, newValue: newStatus, timestamp: new Date().toISOString() }
         set((s) => ({ activityLog: [...s.activityLog, entry] }))
-        // Sync to DB
         if (isSupabaseConfigured()) {
           db.updatePostDB(id, updates)
-          db.insertActivity(id, 'Status changed', 'Current User', oldStatus, newStatus)
+          db.insertActivity(id, 'Status changed', userName, oldStatus, newStatus)
         }
       },
 
@@ -172,37 +176,27 @@ export const useContentStore = create<ContentStore>()(
         }
       },
 
-      addComment: (postId, author, text) => {
-        const comment: Comment = { id: crypto.randomUUID(), postId, author, text, createdAt: new Date().toISOString() }
+      addComment: (postId, text) => {
+        const userName = get().currentUser?.name || 'Unknown'
+        const comment: Comment = { id: crypto.randomUUID(), postId, author: userName, text, createdAt: new Date().toISOString() }
         set((s) => ({ comments: [...s.comments, comment] }))
         if (isSupabaseConfigured()) {
-          db.insertComment(postId, author, text)
+          db.insertComment(postId, userName, text)
         }
       },
 
-      // --- Supabase sync methods ---
-
       initFromSupabase: async () => {
-        if (!isSupabaseConfigured()) {
-          set({ isOnline: false })
-          return
-        }
+        if (!isSupabaseConfigured()) { set({ isOnline: false }); return }
         set({ isLoading: true })
         try {
           const [posts, comments, activity] = await Promise.all([
-            db.fetchAllPosts(),
-            db.fetchComments(),
-            db.fetchActivityLog(),
+            db.fetchAllPosts(), db.fetchComments(), db.fetchActivityLog(),
           ])
-          // Only replace if we got data from Supabase
           if (posts.length > 0) {
             set({ posts, comments, activityLog: activity, isOnline: true, isLoading: false })
           } else {
-            // DB is empty — push local data to Supabase
             const localPosts = get().posts
-            if (localPosts.length > 0) {
-              await db.bulkInsertPosts(localPosts)
-            }
+            if (localPosts.length > 0) await db.bulkInsertPosts(localPosts)
             set({ isOnline: true, isLoading: false })
           }
         } catch (err) {
@@ -216,13 +210,11 @@ export const useContentStore = create<ContentStore>()(
         const posts = await db.fetchAllPosts()
         if (posts.length > 0) set({ posts })
       },
-
       refreshComments: async () => {
         if (!isSupabaseConfigured()) return
         const comments = await db.fetchComments()
         set({ comments })
       },
-
       refreshActivity: async () => {
         if (!isSupabaseConfigured()) return
         const activityLog = await db.fetchActivityLog()
@@ -236,6 +228,7 @@ export const useContentStore = create<ContentStore>()(
         comments: state.comments,
         activityLog: state.activityLog,
         isDarkMode: state.isDarkMode,
+        currentUser: state.currentUser,
       }),
     }
   )

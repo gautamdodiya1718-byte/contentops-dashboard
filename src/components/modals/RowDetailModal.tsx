@@ -39,7 +39,7 @@ export function RowDetailModal() {
 
   const handleAddComment = () => {
     if (!commentText.trim()) return
-    addComment(post.id, 'Current User', commentText.trim())
+    addComment(post.id, commentText.trim())
     setCommentText('')
   }
 
