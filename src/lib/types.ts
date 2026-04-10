@@ -65,21 +65,21 @@ export const ALL_STATUSES: ContentStatus[] = [
 ]
 
 export const STATUS_COLORS: Record<ContentStatus, string> = {
-  'IDEA': 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
-  'ASSIGNED': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
-  'IN PROGRESS': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-  'WRITTEN': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800',
-  'IN REVIEW': 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800',
-  'APPROVED': 'bg-lime-50 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300 dark:border-lime-800',
-  'SCHEDULED': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800',
-  'PUBLISHED': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
-  'ARCHIVED': 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
+  'IDEA': 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-700/50 dark:text-slate-200 dark:border-slate-600',
+  'ASSIGNED': 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/40',
+  'IN PROGRESS': 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40',
+  'WRITTEN': 'bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/40',
+  'IN REVIEW': 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/40',
+  'APPROVED': 'bg-lime-50 text-lime-700 border-lime-300 dark:bg-lime-500/20 dark:text-lime-300 dark:border-lime-500/40',
+  'SCHEDULED': 'bg-teal-50 text-teal-700 border-teal-300 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/40',
+  'PUBLISHED': 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40',
+  'ARCHIVED': 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-600/30 dark:text-gray-400 dark:border-gray-600/40',
 }
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
-  'High': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800',
-  'Medium': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-  'Low': 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+  'High': 'bg-red-50 text-red-700 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/40',
+  'Medium': 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/40',
+  'Low': 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600',
 }
 
 export const SAMPLE_DATA: ContentPost[] = [

@@ -3,7 +3,6 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -16,7 +15,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { FileText } from 'lucide-react'
 import { useContentStore } from '@/stores/contentStore'
 import type { ContentPost, ContentStatus } from '@/lib/types'
-import { ALL_STATUSES, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/types'
+import { ALL_STATUSES, PRIORITY_COLORS } from '@/lib/types'
 import { cn, getInitials, isOverdue } from '@/lib/utils'
 
 export function KanbanBoard() {
@@ -45,7 +44,7 @@ export function KanbanBoard() {
   }
 
   return (
-    <div className="bg-muted/30 border border-border rounded-xl p-4 min-h-[600px] overflow-x-auto">
+    <div className="bg-muted/30 dark:bg-slate-900/50 border border-border rounded-xl p-4 min-h-[600px] overflow-x-auto">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 min-w-max">
           {ALL_STATUSES.map((status) => {
@@ -70,13 +69,13 @@ function KanbanColumn({ status, posts, onCardClick }: { status: ContentStatus; p
     <div
       ref={setNodeRef}
       className={cn(
-        'w-64 bg-muted/50 border border-border rounded-lg p-3 flex flex-col gap-2 min-h-[500px] transition-colors',
-        isOver && 'bg-primary/5 border-primary/30'
+        'w-64 bg-muted/50 dark:bg-slate-800/60 border border-border dark:border-slate-700/60 rounded-lg p-3 flex flex-col gap-2 min-h-[500px] transition-colors',
+        isOver && 'bg-primary/5 dark:bg-primary/10 border-primary/30'
       )}
     >
       <div className="flex items-center justify-between px-1 mb-1">
         <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">{status}</h3>
-        <span className="text-xs font-medium bg-background text-muted-foreground px-2 py-0.5 rounded-full border border-border">
+        <span className="text-xs font-medium bg-background dark:bg-slate-900 text-muted-foreground px-2 py-0.5 rounded-full border border-border">
           {posts.length}
         </span>
       </div>
@@ -100,9 +99,9 @@ function KanbanCard({ post, onClick }: { post: ContentPost; onClick: () => void 
       {...attributes}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       className={cn(
-        'bg-card p-3 rounded-lg border border-border cursor-grab active:cursor-grabbing hover:border-primary/40 transition-all shadow-sm',
+        'bg-card dark:bg-slate-900 p-3 rounded-lg border border-border dark:border-slate-700 cursor-grab active:cursor-grabbing hover:border-primary/40 transition-all shadow-sm dark:shadow-md dark:shadow-black/20',
         isDragging && 'opacity-50 shadow-lg',
-        overdue && 'border-red-300'
+        overdue && 'border-red-400/60 dark:border-red-500/40'
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -113,7 +112,7 @@ function KanbanCard({ post, onClick }: { post: ContentPost; onClick: () => void 
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold">
+          <div className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-bold">
             {getInitials(post.author)[0]}
           </div>
           <span className="truncate max-w-[100px]">{post.author}</span>
@@ -121,7 +120,7 @@ function KanbanCard({ post, onClick }: { post: ContentPost; onClick: () => void 
         <span className="flex items-center gap-1"><FileText size={11} /> {post.wordCount}w</span>
       </div>
       {post.dueDate && (
-        <div className={cn('text-[10px] mt-2', overdue ? 'text-red-600 font-medium' : 'text-muted-foreground')}>
+        <div className={cn('text-[10px] mt-2', overdue ? 'text-red-500 dark:text-red-400 font-medium' : 'text-muted-foreground')}>
           Due: {post.dueDate}
         </div>
       )}
@@ -131,7 +130,7 @@ function KanbanCard({ post, onClick }: { post: ContentPost; onClick: () => void 
 
 function KanbanCardOverlay({ post }: { post: ContentPost }) {
   return (
-    <div className="bg-card p-3 rounded-lg border-2 border-primary shadow-xl w-64 opacity-90">
+    <div className="bg-card dark:bg-slate-800 p-3 rounded-lg border-2 border-primary shadow-xl w-64 opacity-90">
       <p className="text-sm font-medium text-foreground line-clamp-2">{post.title}</p>
       <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
         <span>{post.author}</span>

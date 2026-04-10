@@ -81,7 +81,7 @@ export default function App() {
             {/* Connection status */}
             {isSupabaseConfigured() && (
               <div className="flex items-center gap-3">
-                <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg ${isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'}`}>
+                <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg ${isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'}`}>
                   <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   {isLoading ? 'Syncing...' : isOnline ? 'Connected' : 'Offline'}
                 </div>
