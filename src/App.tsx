@@ -11,9 +11,13 @@ import { ImportModal } from '@/components/modals/ImportModal'
 import { ExportModal } from '@/components/modals/ExportModal'
 import { FilterPanel } from '@/components/modals/FilterPanel'
 import { UserSetupModal } from '@/components/modals/UserSetupModal'
+import { ToastContainer } from '@/components/ui/Toast'
 import { useContentStore } from '@/stores/contentStore'
+import { useToastStore } from '@/stores/toastStore'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { subscribeToChanges } from '@/lib/supabaseService'
+import { formatDistanceToNow } from 'date-fns'
+import { Loader2 } from 'lucide-react'
 
 export default function App() {
   const activeView = useContentStore((s) => s.activeView)
@@ -21,11 +25,13 @@ export default function App() {
   const selectedPostId = useContentStore((s) => s.selectedPostId)
   const isLoading = useContentStore((s) => s.isLoading)
   const isOnline = useContentStore((s) => s.isOnline)
-  const currentUser = useContentStore((s) => s.currentUser)
+  const isInitialized = useContentStore((s) => s.isInitialized)
+  const lastSyncedAt = useContentStore((s) => s.lastSyncedAt)
   const initFromSupabase = useContentStore((s) => s.initFromSupabase)
   const refreshPosts = useContentStore((s) => s.refreshPosts)
   const refreshComments = useContentStore((s) => s.refreshComments)
   const refreshActivity = useContentStore((s) => s.refreshActivity)
+  const addToast = useToastStore((s) => s.addToast)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode)
@@ -38,18 +44,33 @@ export default function App() {
   useEffect(() => {
     if (!isSupabaseConfigured()) return
     const unsubscribe = subscribeToChanges({
-      onPostChange: () => refreshPosts(),
+      onPostChange: () => {
+        addToast({
+          message: 'Content updated by another user',
+          type: 'info',
+          action: {
+            label: 'Reload data',
+            onClick: () => {
+              refreshPosts()
+              refreshComments()
+              refreshActivity()
+            },
+          },
+        })
+      },
       onCommentChange: () => refreshComments(),
       onActivityChange: () => refreshActivity(),
     })
     return unsubscribe
-  }, [refreshPosts, refreshComments, refreshActivity])
+  }, [refreshPosts, refreshComments, refreshActivity, addToast])
+
+  const lastSyncedLabel = lastSyncedAt
+    ? `Last synced ${formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}`
+    : null
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground">
-      {/* User onboarding — blocks everything until user sets up */}
       <UserSetupModal />
-
       <Sidebar />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -57,19 +78,34 @@ export default function App() {
 
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-[1600px] mx-auto space-y-4">
+            {/* Connection status */}
             {isSupabaseConfigured() && (
-              <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg w-fit ${isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                {isLoading ? 'Syncing...' : isOnline ? 'Connected to Supabase' : 'Offline — using local data'}
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg ${isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {isLoading ? 'Syncing...' : isOnline ? 'Connected' : 'Offline'}
+                </div>
+                {lastSyncedLabel && (
+                  <span className="text-xs text-muted-foreground">{lastSyncedLabel}</span>
+                )}
               </div>
             )}
 
-            <StatsBar />
-            <FilterPanel />
-
-            {activeView === 'table' && <ContentTable />}
-            {activeView === 'kanban' && <KanbanBoard />}
-            {activeView === 'calendar' && <CalendarView />}
+            {/* Loading state — before first Supabase fetch */}
+            {!isInitialized && isSupabaseConfigured() ? (
+              <div className="flex flex-col items-center justify-center py-32 gap-4">
+                <Loader2 size={32} className="text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Loading content from database...</p>
+              </div>
+            ) : (
+              <>
+                <StatsBar />
+                <FilterPanel />
+                {activeView === 'table' && <ContentTable />}
+                {activeView === 'kanban' && <KanbanBoard />}
+                {activeView === 'calendar' && <CalendarView />}
+              </>
+            )}
           </div>
         </div>
       </main>
@@ -78,6 +114,7 @@ export default function App() {
       <AddEditModal />
       <ImportModal />
       <ExportModal />
+      <ToastContainer />
     </div>
   )
 }

@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ContentPost, ContentStatus, ViewType, QuickFilter, Comment, ActivityEntry, Priority } from '@/lib/types'
-import { SAMPLE_DATA } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import * as db from '@/lib/supabaseService'
@@ -21,13 +20,11 @@ interface Filters {
 }
 
 interface ContentStore {
-  // Data
   posts: ContentPost[]
   comments: Comment[]
   activityLog: ActivityEntry[]
   currentUser: CurrentUser | null
 
-  // UI State
   activeView: ViewType
   quickFilter: QuickFilter
   searchTerm: string
@@ -42,12 +39,18 @@ interface ContentStore {
   filters: Filters
   isLoading: boolean
   isOnline: boolean
+  isInitialized: boolean
+  lastSyncedAt: string | null
 
-  // User actions
+  // Multi-select
+  selectedRowIds: string[]
+  toggleRowSelection: (id: string) => void
+  toggleAllRows: (ids: string[]) => void
+  clearSelection: () => void
+  bulkDeletePosts: (ids: string[]) => void
+
   setCurrentUser: (user: CurrentUser) => void
   clearCurrentUser: () => void
-
-  // UI actions
   setActiveView: (view: ViewType) => void
   setQuickFilter: (filter: QuickFilter) => void
   setSearchTerm: (term: string) => void
@@ -62,7 +65,6 @@ interface ContentStore {
   setFilters: (filters: Partial<Filters>) => void
   resetFilters: () => void
 
-  // CRUD
   addPost: (post: Omit<ContentPost, 'id' | 'createdAt' | 'updatedAt'>) => void
   updatePost: (id: string, updates: Partial<ContentPost>) => void
   deletePost: (id: string) => void
@@ -70,7 +72,6 @@ interface ContentStore {
   importPosts: (posts: ContentPost[]) => void
   addComment: (postId: string, text: string) => void
 
-  // Supabase
   initFromSupabase: () => Promise<void>
   refreshPosts: () => Promise<void>
   refreshComments: () => Promise<void>
@@ -84,10 +85,12 @@ const defaultFilters: Filters = {
 export const useContentStore = create<ContentStore>()(
   persist(
     (set, get) => ({
-      posts: SAMPLE_DATA,
+      // Data — start EMPTY, Supabase is the source of truth
+      posts: [],
       comments: [],
       activityLog: [],
       currentUser: null,
+
       activeView: 'table' as ViewType,
       quickFilter: 'all' as QuickFilter,
       searchTerm: '',
@@ -102,12 +105,35 @@ export const useContentStore = create<ContentStore>()(
       filters: defaultFilters,
       isLoading: false,
       isOnline: false,
+      isInitialized: false,
+      lastSyncedAt: null,
 
-      // --- User ---
+      // Multi-select
+      selectedRowIds: [],
+      toggleRowSelection: (id) => set((s) => {
+        const exists = s.selectedRowIds.includes(id)
+        return { selectedRowIds: exists ? s.selectedRowIds.filter(r => r !== id) : [...s.selectedRowIds, id] }
+      }),
+      toggleAllRows: (ids) => set((s) => {
+        const allSelected = ids.every(id => s.selectedRowIds.includes(id))
+        return { selectedRowIds: allSelected ? [] : [...ids] }
+      }),
+      clearSelection: () => set({ selectedRowIds: [] }),
+      bulkDeletePosts: (ids) => {
+        const userName = get().currentUser?.name || 'Unknown'
+        set((s) => ({
+          posts: s.posts.filter(p => !ids.includes(p.id)),
+          selectedRowIds: [],
+          selectedPostId: ids.includes(s.selectedPostId || '') ? null : s.selectedPostId,
+        }))
+        if (isSupabaseConfigured()) {
+          db.bulkDeletePostsDB(ids)
+          ids.forEach(id => db.insertActivity(id, 'Deleted', userName, '', ''))
+        }
+      },
+
       setCurrentUser: (user) => set({ currentUser: user }),
       clearCurrentUser: () => set({ currentUser: null }),
-
-      // --- UI ---
       setActiveView: (view) => set({ activeView: view }),
       setQuickFilter: (filter) => set({ quickFilter: filter }),
       setSearchTerm: (term) => set({ searchTerm: term }),
@@ -126,7 +152,7 @@ export const useContentStore = create<ContentStore>()(
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
       resetFilters: () => set({ filters: defaultFilters }),
 
-      // --- CRUD (optimistic + Supabase sync) ---
+      // --- CRUD ---
 
       addPost: (post) => {
         const userName = get().currentUser?.name || 'Unknown'
@@ -136,7 +162,7 @@ export const useContentStore = create<ContentStore>()(
         const entry: ActivityEntry = { id: crypto.randomUUID(), postId: newPost.id, action: 'Created', performedBy: userName, oldValue: '', newValue: newPost.title, timestamp: new Date().toISOString() }
         set((s) => ({ activityLog: [...s.activityLog, entry] }))
         if (isSupabaseConfigured()) {
-          db.insertPost(newPost).then(ok => { if (!ok) console.error('Failed to sync new post') })
+          db.insertPost(newPost)
           db.insertActivity(newPost.id, 'Created', userName, '', newPost.title)
         }
       },
@@ -144,9 +170,7 @@ export const useContentStore = create<ContentStore>()(
       updatePost: (id, updates) => {
         const now = new Date().toISOString().split('T')[0]
         set((s) => ({ posts: s.posts.map((p) => p.id === id ? { ...p, ...updates, updatedAt: now } : p) }))
-        if (isSupabaseConfigured()) {
-          db.updatePostDB(id, { ...updates, updatedAt: now })
-        }
+        if (isSupabaseConfigured()) { db.updatePostDB(id, { ...updates, updatedAt: now }) }
       },
 
       deletePost: (id) => {
@@ -178,9 +202,7 @@ export const useContentStore = create<ContentStore>()(
       importPosts: (newPosts) => {
         set((s) => ({ posts: [...newPosts, ...s.posts] }))
         if (isSupabaseConfigured()) {
-          db.bulkInsertPosts(newPosts).then(ok => {
-            if (ok) get().refreshPosts()
-          })
+          db.bulkInsertPosts(newPosts).then(ok => { if (ok) get().refreshPosts() })
         }
       },
 
@@ -194,38 +216,41 @@ export const useContentStore = create<ContentStore>()(
       // --- Supabase sync ---
 
       initFromSupabase: async () => {
-        if (!isSupabaseConfigured()) { set({ isOnline: false }); return }
+        if (!isSupabaseConfigured()) {
+          set({ isOnline: false, isInitialized: true })
+          return
+        }
         set({ isLoading: true })
         try {
+          // Clean up expired posts first
+          const cleanedCount = await db.deleteExpiredPosts(14)
+          if (cleanedCount > 0) {
+            console.log(`Cleaned up ${cleanedCount} posts older than 14 days`)
+          }
+
           const [posts, comments, activity] = await Promise.all([
             db.fetchAllPosts(), db.fetchComments(), db.fetchActivityLog(),
           ])
-          if (posts.length > 0) {
-            set({ posts, comments, activityLog: activity, isOnline: true, isLoading: false })
-          } else {
-            // DB empty — seed with sample data
-            const localPosts = get().posts
-            if (localPosts.length > 0) {
-              const ok = await db.bulkInsertPosts(localPosts)
-              if (ok) {
-                set({ isOnline: true, isLoading: false })
-              } else {
-                set({ isOnline: false, isLoading: false })
-              }
-            } else {
-              set({ isOnline: true, isLoading: false })
-            }
-          }
+          // Always set what Supabase returns — even if empty
+          set({
+            posts,
+            comments,
+            activityLog: activity,
+            isOnline: true,
+            isLoading: false,
+            isInitialized: true,
+            lastSyncedAt: new Date().toISOString(),
+          })
         } catch (err) {
           console.error('Supabase init failed:', err)
-          set({ isOnline: false, isLoading: false })
+          set({ isOnline: false, isLoading: false, isInitialized: true })
         }
       },
 
       refreshPosts: async () => {
         if (!isSupabaseConfigured()) return
         const posts = await db.fetchAllPosts()
-        if (posts.length > 0) set({ posts })
+        set({ posts, lastSyncedAt: new Date().toISOString() })
       },
       refreshComments: async () => {
         if (!isSupabaseConfigured()) return

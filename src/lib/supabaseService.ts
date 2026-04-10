@@ -120,6 +120,26 @@ export async function bulkInsertPosts(posts: ContentPost[]): Promise<boolean> {
   return true
 }
 
+export async function bulkDeletePostsDB(ids: string[]): Promise<boolean> {
+  if (!isSupabaseConfigured() || ids.length === 0) return false
+  const { error } = await supabase.from('content_posts').delete().in('id', ids)
+  if (error) { console.error('bulkDeletePosts error:', error); return false }
+  return true
+}
+
+export async function deleteExpiredPosts(days: number): Promise<number> {
+  if (!isSupabaseConfigured()) return 0
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const { data, error } = await supabase
+    .from('content_posts')
+    .delete()
+    .lt('created_at', cutoff.toISOString())
+    .select('id')
+  if (error) { console.error('deleteExpiredPosts error:', error); return 0 }
+  return data?.length || 0
+}
+
 // --- COMMENTS ---
 
 export async function fetchComments(): Promise<Comment[]> {
