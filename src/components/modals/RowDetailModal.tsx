@@ -44,13 +44,13 @@ export function RowDetailModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setSelectedPostId(null)}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm md:p-4" onClick={() => setSelectedPostId(null)}>
       <div
-        className="bg-card w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-border"
+        className="bg-card w-full md:max-w-5xl h-[95vh] md:h-auto md:max-h-[90vh] rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <span className="text-xs font-mono text-muted-foreground shrink-0">{post.id}</span>
             <h2 className="text-lg font-semibold text-foreground truncate">{post.title}</h2>
@@ -79,7 +79,7 @@ export function RowDetailModal() {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Left: Content & SEO */}
             <div className="lg:col-span-2 space-y-8">
               {/* Content Details */}

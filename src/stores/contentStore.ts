@@ -41,6 +41,7 @@ interface ContentStore {
   isOnline: boolean
   isInitialized: boolean
   lastSyncedAt: string | null
+  isMobileSidebarOpen: boolean
 
   // Multi-select
   selectedRowIds: string[]
@@ -51,6 +52,7 @@ interface ContentStore {
 
   setCurrentUser: (user: CurrentUser) => void
   clearCurrentUser: () => void
+  setMobileSidebarOpen: (open: boolean) => void
   setActiveView: (view: ViewType) => void
   setQuickFilter: (filter: QuickFilter) => void
   setSearchTerm: (term: string) => void
@@ -107,6 +109,7 @@ export const useContentStore = create<ContentStore>()(
       isOnline: false,
       isInitialized: false,
       lastSyncedAt: null,
+      isMobileSidebarOpen: false,
 
       // Multi-select
       selectedRowIds: [],
@@ -134,7 +137,8 @@ export const useContentStore = create<ContentStore>()(
 
       setCurrentUser: (user) => set({ currentUser: user }),
       clearCurrentUser: () => set({ currentUser: null }),
-      setActiveView: (view) => set({ activeView: view }),
+      setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
+      setActiveView: (view) => set({ activeView: view, isMobileSidebarOpen: false }),
       setQuickFilter: (filter) => set({ quickFilter: filter }),
       setSearchTerm: (term) => set({ searchTerm: term }),
       toggleDarkMode: () => set((s) => {

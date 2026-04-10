@@ -31,10 +31,10 @@ export function UserSetupModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-lg rounded-2xl shadow-2xl border border-border overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm md:p-4">
+      <div className="bg-card w-full md:max-w-lg max-h-[95vh] overflow-y-auto rounded-t-2xl md:rounded-2xl shadow-2xl border border-border">
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 text-center">
+        <div className="px-5 md:px-8 pt-6 md:pt-8 pb-4 text-center">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <User size={28} className="text-primary" />
           </div>
@@ -43,7 +43,7 @@ export function UserSetupModal() {
         </div>
 
         {/* Form */}
-        <div className="px-8 pb-6 space-y-5">
+        <div className="px-5 md:px-8 pb-6 space-y-5">
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Your Name</label>
@@ -83,7 +83,7 @@ export function UserSetupModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 bg-muted/30 border-t border-border">
+        <div className="px-5 md:px-8 py-4 bg-muted/30 border-t border-border">
           <button
             onClick={handleSubmit}
             className="w-full py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"

@@ -69,8 +69,8 @@ export function CalendarView() {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground">{monthName}</h2>
+      <div className="flex items-center justify-between px-3 md:px-6 py-3 md:py-4 border-b border-border">
+        <h2 className="text-base md:text-lg font-semibold text-foreground">{monthName}</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
@@ -112,7 +112,7 @@ export function CalendarView() {
             <div
               key={i}
               className={cn(
-                'min-h-[100px] p-1.5 border-b border-r border-border/50 transition-colors',
+                'min-h-[60px] md:min-h-[100px] p-1 md:p-1.5 border-b border-r border-border/50 transition-colors',
                 !day.isCurrentMonth && 'bg-muted/30',
                 isToday && 'bg-primary/5'
               )}

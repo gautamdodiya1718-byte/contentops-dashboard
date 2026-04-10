@@ -76,7 +76,7 @@ export default function App() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <Header />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-3 md:p-6">
           <div className="max-w-[1600px] mx-auto space-y-4">
             {/* Connection status */}
             {isSupabaseConfigured() && (
